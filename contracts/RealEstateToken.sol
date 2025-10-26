@@ -1,4 +1,3 @@
-// contracts/RealEstateToken.sol
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
@@ -18,6 +17,7 @@ contract RealEstateToken is ERC721URIStorage, Ownable {
         address currentOwner;
         bool isForSale;
         uint256 createdAt;
+        bool exists;
     }
     
     mapping(uint256 => Property) public properties;
@@ -67,7 +67,8 @@ contract RealEstateToken is ERC721URIStorage, Ownable {
             yearBuilt: yearBuilt,
             currentOwner: to,
             isForSale: false,
-            createdAt: block.timestamp
+            createdAt: block.timestamp,
+            exists: true
         });
         
         _ownedProperties[to].push(tokenId);
@@ -80,7 +81,7 @@ contract RealEstateToken is ERC721URIStorage, Ownable {
     
     function updatePropertyValue(uint256 tokenId, uint256 newValue) public {
         Property storage property = properties[tokenId];
-        require(property.tokenId != 0, "Property does not exist");
+        require(property.exists, "Property does not exist");
         require(newValue > 0, "Value must be greater than 0");
         require(
             msg.sender == property.currentOwner || msg.sender == owner(),
@@ -93,7 +94,7 @@ contract RealEstateToken is ERC721URIStorage, Ownable {
     
     function toggleForSale(uint256 tokenId) public {
         Property storage property = properties[tokenId];
-        require(property.tokenId != 0, "Property does not exist");
+        require(property.exists, "Property does not exist");
         require(msg.sender == property.currentOwner, "Not the owner");
         
         property.isForSale = !property.isForSale;
@@ -102,7 +103,7 @@ contract RealEstateToken is ERC721URIStorage, Ownable {
 
     function getProperty(uint256 tokenId) public view returns (Property memory) {
         Property memory property = properties[tokenId];
-        require(property.tokenId != 0, "Property does not exist");
+        require(property.exists, "Property does not exist");
         return property;
     }
     function getPropertiesByOwner(address owner) public view returns (Property[] memory) {

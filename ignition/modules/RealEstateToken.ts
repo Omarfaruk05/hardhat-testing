@@ -8,32 +8,32 @@ const RealEstateTokenModule = buildModule("RealEstateTokenModule", (m) => {
     // Deploy the contract
     const realEstateToken = m.contract("RealEstateToken", [deployer]);
 
-    // Seed with sample properties
+    // Seed with sample properties (using m.getAccount for recipient addresses)
     const sampleProperties = [
         {
             to: deployer,
             tokenURI: "ipfs://QmSample1",
             location: "123 Main Street, New York, NY",
-            area: 150,
-            value: BigInt("75000000000000000000"), // 750000 ETH in wei
+            area: 1500, // in square feet
+            value: m.getParameter("value1", BigInt("750000000000000000000")), // 750 ETH in wei
             propertyType: "residential",
             yearBuilt: 2020
         },
         {
-            to: deployer,
+            to: m.getAccount(1), // Different account for testing
             tokenURI: "ipfs://QmSample2",
             location: "456 Oak Avenue, Los Angeles, CA",
-            area: 300,
-            value: BigInt("120000000000000000000"), // 1200000 ETH in wei
+            area: 3000, // in square feet
+            value: m.getParameter("value2", BigInt("1200000000000000000000")), // 1200 ETH in wei
             propertyType: "commercial",
             yearBuilt: 2018
         },
         {
-            to: deployer,
+            to: m.getAccount(2), // Another account
             tokenURI: "ipfs://QmSample3",
             location: "789 Pine Road, Miami, FL",
-            area: 500,
-            value: BigInt("50000000000000000"), // 500000 ETH in wei
+            area: 5000, // in square feet
+            value: m.getParameter("value3", BigInt("500000000000000000000")), // 500 ETH in wei
             propertyType: "land",
             yearBuilt: 2023
         }
@@ -49,7 +49,10 @@ const RealEstateTokenModule = buildModule("RealEstateTokenModule", (m) => {
             prop.value,
             prop.propertyType,
             prop.yearBuilt
-        ], { id: `mintProperty${index}` });
+        ], {
+            id: `mintProperty${index}`,
+            after: [realEstateToken] // Ensure contract is deployed first
+        });
     });
 
     return { realEstateToken };

@@ -1,4 +1,3 @@
-// test/RealEstateToken.test.ts
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
@@ -17,8 +16,32 @@ describe("RealEstateToken", function () {
         const RealEstateTokenFactory = await ethers.getContractFactory("RealEstateToken");
         realEstateToken = await RealEstateTokenFactory.deploy(owner.address);
 
-        // Mint a property and store the tokenId for use in tests
-        const tx = await realEstateToken.mintProperty(
+        // // Mint the first property
+        // const tx = await realEstateToken.mintProperty(
+        //     user1.address,
+        //     "https://example.com/token/1",
+        //     "123 Main St",
+        //     150,
+        //     ethers.parseEther("500000"),
+        //     "residential",
+        //     2020
+        // );
+        // const receipt = await tx.wait();
+
+        // // Extract tokenId from event
+        // const event = receipt?.logs
+        //     .map((log: any) => {
+        //         try {
+        //             return realEstateToken.interface.parseLog(log);
+        //         } catch {
+        //             return null;
+        //         }
+        //     })
+        //     .find((parsed: any) => parsed && parsed.name === "PropertyMinted");
+
+        // tokenId = event?.args?.tokenId ? Number(event.args.tokenId) : 1;
+
+        tokenId = Number(await realEstateToken.mintProperty(
             user1.address,
             "https://example.com/token/1",
             "123 Main St",
@@ -26,11 +49,7 @@ describe("RealEstateToken", function () {
             ethers.parseEther("500000"),
             "residential",
             2020
-        );
-        await tx.wait();
-
-        // Get the tokenId that was minted (should be 0 for first mint)
-        tokenId = 0;
+        ))
     });
 
     describe("Deployment", function () {
@@ -53,19 +72,20 @@ describe("RealEstateToken", function () {
             const propertyType = "residential";
             const yearBuilt = 2020;
 
-            await expect(
-                realEstateToken.mintProperty(
+           const tx = await realEstateToken.mintProperty(
                     user1.address,
                     tokenURI,
                     location,
                     area,
                     value,
                     propertyType,
-                    yearBuilt
-                )
-            ).to.emit(realEstateToken, "PropertyMinted");
+                    yearBuilt   
+            );
+            await expect(tx).to.emit(realEstateToken, "PropertyMinted");
 
-            const property = await realEstateToken.properties(1); // Second property should have tokenId 1
+            const newTokenId = Number(await realEstateToken.nextTokenId())-1;
+            const property = await realEstateToken.properties(newTokenId); // second minted property
+
             expect(property.location).to.equal(location);
             expect(property.area).to.equal(area);
             expect(property.value).to.equal(value);
@@ -77,7 +97,6 @@ describe("RealEstateToken", function () {
 
         it("Should not mint with duplicate token URI", async function () {
             const tokenURI = "https://example.com/token/1";
-
             await expect(
                 realEstateToken.mintProperty(
                     user2.address,
@@ -97,7 +116,7 @@ describe("RealEstateToken", function () {
                     user1.address,
                     "https://example.com/token/3",
                     "Location",
-                    0, // Invalid area
+                    0,
                     ethers.parseEther("100000"),
                     "residential",
                     2020
@@ -112,7 +131,7 @@ describe("RealEstateToken", function () {
                     "https://example.com/token/4",
                     "Location",
                     100,
-                    0, // Invalid value
+                    0,
                     "residential",
                     2020
                 )
@@ -152,9 +171,11 @@ describe("RealEstateToken", function () {
     });
 
     describe("Property Queries", function () {
+        let secondTokenId: number;
+        let thirdTokenId : number;
+
         beforeEach(async function () {
-            // Mint additional properties for these tests
-            await realEstateToken.mintProperty(
+            secondTokenId = Number(await realEstateToken.mintProperty(
                 user1.address,
                 "https://example.com/token/2",
                 "Property 2",
@@ -162,9 +183,9 @@ describe("RealEstateToken", function () {
                 ethers.parseEther("200000"),
                 "commercial",
                 2021
-            );
+            ));
 
-            await realEstateToken.mintProperty(
+            thirdTokenId = Number(await realEstateToken.mintProperty(
                 user2.address,
                 "https://example.com/token/3",
                 "Property 3",
@@ -172,12 +193,11 @@ describe("RealEstateToken", function () {
                 ethers.parseEther("300000"),
                 "land",
                 2022
-            );
+            ))
         });
 
         it("Should get properties by owner", async function () {
             const properties = await realEstateToken.getPropertiesByOwner(user1.address);
-
             expect(properties.length).to.equal(2);
             expect(properties[0].location).to.equal("123 Main St");
             expect(properties[1].location).to.equal("Property 2");
@@ -185,7 +205,6 @@ describe("RealEstateToken", function () {
 
         it("Should get all properties", async function () {
             const allProperties = await realEstateToken.getAllProperties();
-
             expect(allProperties.length).to.equal(3);
         });
 
@@ -209,14 +228,12 @@ describe("RealEstateToken", function () {
         it("Should transfer property and update ownership", async function () {
             await realEstateToken.connect(user1).toggleForSale(tokenId);
 
-            // Transfer the token
             await realEstateToken.connect(user1).transferFrom(user1.address, user2.address, tokenId);
 
             const property = await realEstateToken.properties(tokenId);
             expect(property.currentOwner).to.equal(user2.address);
-            expect(property.isForSale).to.equal(false); // Should reset on transfer
+            expect(property.isForSale).to.equal(false);
 
-            // Check owned properties
             const user1Properties = await realEstateToken.getPropertiesByOwner(user1.address);
             const user2Properties = await realEstateToken.getPropertiesByOwner(user2.address);
 
